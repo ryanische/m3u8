@@ -74,21 +74,11 @@ describe M3u8::PlaylistItem do
   end
 
   describe '#to_s' do
-    context 'when codecs is missing' do
-      it 'raises error' do
-        params = { bandwidth: 540, uri: 'test.url' }
-        item = M3u8::PlaylistItem.new params
-        message = 'Audio or video codec info should be provided.'
-        expect { item.to_s }.to raise_error(M3u8::MissingCodecError, message)
-      end
-    end
-
     context 'when only required attributes are present' do
       it 'returns tag' do
-        options = { codecs: 'avc', bandwidth: 540,
-                    uri: 'test.url' }
+        options = { bandwidth: 540, uri: 'test.url' }
         item = described_class.new(options)
-        expected = %(#EXT-X-STREAM-INF:CODECS="avc",BANDWIDTH=540) +
+        expected = %(#EXT-X-STREAM-INF:BANDWIDTH=540) +
                    "\ntest.url"
         expect(item.to_s).to eq(expected)
       end

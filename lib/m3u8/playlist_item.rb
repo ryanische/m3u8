@@ -7,11 +7,11 @@ module M3u8
     attr_accessor :program_id, :width, :height, :codecs, :bandwidth,
                   :audio_codec, :level, :profile, :video, :audio, :uri,
                   :average_bandwidth, :subtitles, :closed_captions, :iframe,
-                  :frame_rate, :name, :hdcp_level
-    MISSING_CODEC_MESSAGE = 'Audio or video codec info should be provided.'
+                  :frame_rate, :name, :hdcp_level, :assert_codecs
 
     def initialize(params = {})
       self.iframe = false
+      self.assert_codecs = false
       params.each do |key, value|
         instance_variable_set("@#{key}", value)
       end
@@ -37,16 +37,11 @@ module M3u8
     def codecs
       return @codecs unless @codecs.nil?
 
-      video_code = video_codec(profile, level)
-      return audio_codec_code if video_code.nil?
-      return video_code if audio_codec_code.nil?
-
-      "#{video_code},#{audio_codec_code}"
+      codec_strings = [video_codec(profile, level), audio_codec_code].compact
+      return codec_strings.empty? ? nil : codec_strings.join(',')
     end
 
     def to_s
-      validate
-
       m3u8_format
     end
 
@@ -86,10 +81,6 @@ module M3u8
 
       value = BigDecimal(frame_rate)
       value if value > 0
-    end
-
-    def validate
-      raise MissingCodecError, MISSING_CODEC_MESSAGE if codecs.nil?
     end
 
     def m3u8_format
@@ -134,6 +125,7 @@ module M3u8
     end
 
     def codecs_format
+      return if codecs.nil?
       %(CODECS="#{codecs}")
     end
 
@@ -181,6 +173,8 @@ module M3u8
       return 'mp4a.40.2' if @audio_codec.casecmp('aac-lc').zero?
       return 'mp4a.40.5' if @audio_codec.casecmp('he-aac').zero?
       return 'mp4a.40.34' if @audio_codec.casecmp('mp3').zero?
+
+      raise MissingCodecError, "No matching audio codec string for #{@audio_codec}" if assert_codecs
     end
 
     def video_codec(profile, level)
@@ -189,6 +183,8 @@ module M3u8
       return baseline_codec_string(level) if profile.casecmp('baseline').zero?
       return main_codec_string(level) if profile.casecmp('main').zero?
       return high_codec_string(level) if profile.casecmp('high').zero?
+
+      raise MissingCodecError, "No matching video codec string for profile: #{profile} and level: #{level}" if assert_codecs
     end
 
     def baseline_codec_string(level)
